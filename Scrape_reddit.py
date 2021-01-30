@@ -5,7 +5,7 @@ import os
 import time
 from datetime import datetime
 import requests
-import urllib3
+
 
 def get_message(): #get message without url to post
     if os.path.exists('msg_txt.txt'):
