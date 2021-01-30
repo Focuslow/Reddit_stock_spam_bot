@@ -165,6 +165,7 @@ def post_comments(reddit, submissions, old_posts=[]):  # post comment on each su
 
 
             except RedditAPIException as error:
+                print('Tried to comment on: '+submission.title+' - but Failed.')
                 print(error)
                 raise error
 
@@ -190,6 +191,7 @@ def post_reply_on_comments(reddit, submissions, phrase=None,
 
 
                     except RedditAPIException as error:
+                        print('Tried to comment on: ' + post.title + ' - but Failed.')
                         print(error)
                         raise error
 
@@ -203,7 +205,6 @@ def spam(subs_list, reddit, search_phrases):
         # reply to top 5 posts of each day on each listed subreddit if none listed then skip
         if sub != 'all':
             top_posts = sub.top('day', limit=5)
-            post_comments(reddit, top_posts, old_posts)
         # for each phrase find posts in all subreddits and reply to the posts
         for phrase in search_phrases:
             submissions = sub.search(phrase, limit=5)
@@ -252,7 +253,8 @@ if __name__ == "__main__":
                 tried+=1
                 continue
 
-            except:
+            except Exception as e:
+                print(e)
                 print('Info: '+ str(user.user.me())+ ' has reached limit, trying out next user.')
                 print('')
                 tried+=1
