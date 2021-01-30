@@ -7,43 +7,22 @@ from datetime import datetime
 import requests
 
 
-def get_message(): #get message without url to post
+def get_message():  # get message to post
     if os.path.exists('msg_txt.txt'):
         with open('msg_txt.txt', 'r') as file:
             msg = file.read()
             msg = msg.strip('\n')
             msg = msg.strip(' ')
 
-    else: #baseline text for testing
+    else:  # baseline text for testing
         with open('msg_txt.txt', 'w') as file:
             file.write('Stocks go up bois!! Find more info and analysis on my page -> ')
             msg = 'Stocks go up bois!! Find more info and analysis on my page -> '
 
     return msg
 
-def get_link_url(stock=''): #get url for specific stock or just post main page
-    if os.path.exists('url_info.txt'):
-        with open('url_info.txt', 'r') as file:
-            url = file.read()
-            url = url.strip('\n')
-            url = url.strip(' ')
 
-            if stock:
-                url = url + 'stock/' + stock
-
-                #test if page exists if not then just use main page
-                if requests.get(url).status_code != 200:
-                    url = 'https://investsuggest.com/'
-
-    else:
-        with open('url_info.txt', 'w') as file:
-            file.write('https://investsuggest.com/ \n')
-            url = 'https://investsuggest.com/'
-
-    return url
-
-
-def get_subs():  # gets wanted subreddits
+def get_subs():  # gets wanted subreddits, can be empty and will just search reddit
     if os.path.exists('subreddits.txt'):
         with open('subreddits.txt', 'r') as file:
             subs = file.read()
@@ -53,6 +32,9 @@ def get_subs():  # gets wanted subreddits
 
             subs = list(filter(None, subs))
 
+            if not subs:
+                subs = ['all']
+
     else:
         with open('subreddits.txt', 'w') as file:
             file.write('Wallstreetbets \n')
@@ -61,7 +43,8 @@ def get_subs():  # gets wanted subreddits
     return subs
 
 
-def get_user():  # get reddit user and api key
+def get_users():  # get reddit user and api key
+    users = []
     user = []
     if os.path.exists('reddit_user.txt'):
         # open and get reddit user and api key
@@ -72,39 +55,53 @@ def get_user():  # get reddit user and api key
 
             txt = list(filter(None, txt))
 
-            for i in txt:
-                str_break = i.index("=")
-                user.append(i[str_break + 1:])
+            for line in txt:
+                str_break = line.index("=")
+                user.append(line[str_break + 1:])
+                if line[:str_break] == 'password' and txt.index(line) != 0:
+                    users.append(user)
+                    user = []
+
+
+
 
     else:
         # testing or if you delete you have correct form just change stuff
         with open('reddit_user.txt', 'w') as file:
+            # user1
             file.write('client_id=pHWeh5UStX5Ffw\n')
             file.write('client_secret=oLlBmvXueQXgfHSYrOVNaTvkSxZjJQ\n')
             file.write('user_agent=Stock_bot_test\n')
             file.write('username=TSLA_bot_test11\n')
             file.write('password=TSLA_bot_test111\n')
-            user = ['pHWeh5UStX5Ffw', 'oLlBmvXueQXgfHSYrOVNaTvkSxZjJQ', 'Stock_bot_test', 'TSLA_bot_test11',
-                    'TSLA_bot_test111']
 
-    return user
+            # user2
+            file.write('client_id=pt8_ymZy3QdH8Q\n')
+            file.write('client_secret=joFigcc09WB3Ytwrdkxk9Vdd_7odQQ\n')
+            file.write('user_agent=Stock_bot_test\n')
+            file.write('username=get_money_bois1\n')
+            file.write('password=get_money_bois12\n')
 
+            users = get_users()
 
-def get_stocks():  # get list of stocks
-    if os.path.exists('stocks.txt'):
-        with open('stocks.txt', 'r') as file:
-            stocks = file.read()
-            stocks = stocks.replace(" ","")
-            stocks = stocks.split('\n')
-            stocks = list(filter(None, stocks))
+    return users
 
 
-    else:
-        with open('stocks.txt', 'w') as file:
-            file.write('TSLA \n')
-            stocks = ['TSLA']
+def get_search_phrases():  # get list of stocks
+    if os.path.exists('search_phrases.txt'):
+        with open('search_phrases.txt', 'r') as file:
+            search_phrases = file.read()
+            search_phrases = search_phrases.strip(" ")
+            search_phrases = search_phrases.split('\n')
+            search_phrases = list(filter(None, search_phrases))
 
-    return stocks
+
+    else:  # start test with stocks
+        with open('search_phrases.txt', 'w') as file:
+            file.write('stocks')
+            search_phrases = ['stocks']
+
+    return search_phrases
 
 
 def commented_posts(new_entry=''):  # what posts did I reply to, if new_entry then update file
@@ -148,28 +145,23 @@ def reddit_API_conn(user):  # connect to reddit API using provided info
     try:
         print('Connected as: ' + str(reddit_user.user.me()))
 
-    except OAuthException:
+    except OAuthException as error:
         print('Wrong user data could not connect')
+        raise error
 
     return reddit_user
 
 
-def post_comments(reddit, submissions, stock=None, old_posts=[], top=False): # post comment on each submission with correct stock.
-    for submission in submissions: #each post on subreddit
-        if submission.id not in old_posts: #not visited yet
+def post_comments(reddit, submissions, old_posts=[]):  # post comment on each submission.
+    for submission in submissions:  # each post on subreddit
+        if submission.id not in old_posts:  # not visited yet
             time.sleep(10)
-            while reddit.auth.limits['remaining'] < 20:  # limit rate of requests
-                print('Waiting out limit')
-                time.sleep(30)
+            if reddit.auth.limits['remaining'] < 20:  # limit rate of requests
+                raise Exception('Limit reached \n')
 
             try:
-                if top and stock not in submission.title:
-                    submission.reply(get_message() + get_link_url())
-                    print('Comment --'+get_message() + get_link_url())
-                else:
-                    submission.reply(get_message() + get_link_url(stock))
-                    print('Comment --'+get_message() + get_link_url(
-                        stock))
+                submission.reply(get_message())
+                print('Comment --' + get_message())
                 old_posts.append(submission.id)
                 commented_posts(submission.id)
                 print('Commented on: ' + str(submission.title) + " --with ID: " + str(submission.id))
@@ -177,57 +169,94 @@ def post_comments(reddit, submissions, stock=None, old_posts=[], top=False): # p
 
             except RedditAPIException as error:
                 print(error)
-                time_reset = datetime.fromtimestamp(reddit.auth.limits['reset_timestamp'])
-                time_reset = (time_reset-datetime.now())
-                print('Waiting for: '+ str(int(time_reset.total_seconds()/60))+" minutes.")
-                time.sleep(time_reset.total_seconds())
+                raise error
 
 
-def post_reply_on_comments(reddit, submissions, stock=None, old_post=None, old_comments=None): #post reply to comments on comment with stocks mention
-    for post in submissions: #all posts in subreddit
-        post.comments.replace_more(limit=0) # get all comments
+def post_reply_on_comments(reddit, submissions, phrase=None,
+                           old_comments=None):  # post reply to comments on comment with phrase mention
+    for post in submissions:  # all posts in subreddit
+        post.comments.replace_more(limit=0)  # get all comments
         for comment in post.comments.list():
-            if comment not in old_comments: #haven't replied to this one yet
-                if stock in comment.body: #contains stock
+            if comment not in old_comments:  # haven't replied to this one yet
+                if phrase in comment.body:  # contains search phrase
                     time.sleep(10)
-                    while reddit.auth.limits['remaining'] < 20:  # limit rate of requests
-                        print('Waiting out limit')
-                        time.sleep(30)
+                    if reddit.auth.limits['remaining'] < 20:  # limit rate of requests
+                        raise Exception('Limit reached \n')
+
                     try:
-                        comment.reply(get_message() + get_link_url())
-                        print('Reply -- Commented on comment: ' + str(comment.body) + "--On a post: "+ str(post.title))
-                        print('Comment --' + get_message() + get_link_url())
+                        comment.reply(get_message())
+                        print('Reply -- Commented on comment: ' + str(comment.body) + "--On a post: " + str(post.title))
+                        print('Comment --' + get_message())
                         old_comments.append(comment.id)
                         commented_comments(comment.id)
 
 
-                    except OAuthException as error:
+
+                    except RedditAPIException as error:
                         print(error)
-                        time_reset = datetime.fromtimestamp(reddit.auth.limits['reset_timestamp'])
-                        time_reset = (time_reset - datetime.now())
-                        print('Waiting for: ' + str(int(time_reset.total_seconds() / 60))+" minutes.")
-                        time.sleep(time_reset.total_seconds())
+                        raise error
 
 
-def spam(subs_list, reddit, stocks_list):
+def spam(subs_list, reddit, search_phrases):
     old_posts = commented_posts()
     old_comments = commented_comments()
+
     for sub in subs_list:
         sub = reddit.subreddit(sub)
-        # reply to top 5 posts of each day on each listed subreddit
-        top_posts = sub.top('day', limit=5)
-        # for each stock find posts in all subreddits and reply to the posts
-        for stock in stocks_list:
-            submissions = sub.search(stock, limit=5)
-            post_comments(reddit, top_posts, stock, old_posts, top=True)
-            post_comments(reddit, submissions, stock, old_posts)
-            post_reply_on_comments(reddit, submissions, stock, old_posts, old_comments)
-            post_reply_on_comments(reddit, top_posts, stock, old_posts, old_comments)
+        # reply to top 5 posts of each day on each listed subreddit if none listed then skip
+        if sub != 'all':
+            top_posts = sub.top('day', limit=5)
+            post_comments(reddit, top_posts, old_posts)
+        # for each phrase find posts in all subreddits and reply to the posts
+        for phrase in search_phrases:
+            submissions = sub.search(phrase, limit=5)
+            try:
+                post_comments(reddit, submissions, old_posts)
+                post_reply_on_comments(reddit, submissions, phrase, old_comments)
+                post_reply_on_comments(reddit, top_posts, phrase, old_comments)
+
+            except RedditAPIException as error:
+                raise error
 
 
 if __name__ == "__main__":
     subreddits = get_subs()
-    user = get_user()
-    user = reddit_API_conn(user)
-    stocks = get_stocks()
-    spam(subreddits, user, stocks)
+    users = get_users()
+    tried = 0
+    search_phrases = get_search_phrases()
+
+    if not search_phrases:
+        print('Error: no search phrases!')
+        print('Quitting!')
+        quit()
+
+    while 1:
+        for user in users:
+            if tried==len(users):
+                print('Tried all accounts waiting for 1 min')
+                print('')
+                time.sleep(60)
+                tried=0
+
+            try:
+                user = reddit_API_conn(user)
+            except OAuthException:
+                print('Error: Incorrect user info for ' + str(user[-2]) + '. Trying out next user.')
+                print('')
+                users.remove(user)
+                continue
+
+            try:
+                spam(subreddits, user, search_phrases)
+
+            except RedditAPIException:
+                print('Info: ' + str(user.user.me()) + ' is timed out, trying out next user.')
+                print('')
+                tried+=1
+                continue
+
+            except:
+                print('Info: '+ str(user.user.me())+ ' has reached limit, trying out next user.')
+                print('')
+                tried+=1
+                continue
