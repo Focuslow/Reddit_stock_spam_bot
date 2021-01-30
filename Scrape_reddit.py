@@ -3,9 +3,6 @@ from prawcore.exceptions import OAuthException
 from praw.exceptions import RedditAPIException
 import os
 import time
-from datetime import datetime
-import requests
-
 
 def get_message():  # get message to post
     if os.path.exists('msg_txt.txt'):
