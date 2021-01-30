@@ -1,0 +1,5 @@
+client_id=pHWeh5UStX5Ffw
+client_secret=oLlBmvXueQXgfHSYrOVNaTvkSxZjJQ
+user_agent=Stock_bot_test
+username=TSLA_bot_test11
+password=TSLA_bot_test111
