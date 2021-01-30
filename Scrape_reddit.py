@@ -4,9 +4,24 @@ from praw.exceptions import RedditAPIException
 import os
 import time
 from datetime import datetime
+import requests
+import urllib3
 
+def get_message(): #get message without url to post
+    if os.path.exists('msg_txt.txt'):
+        with open('msg_txt.txt', 'r') as file:
+            msg = file.read()
+            msg = msg.strip('\n')
+            msg = msg.strip(' ')
 
-def get_link_url(stock=''):
+    else: #baseline text for testing
+        with open('msg_txt.txt', 'w') as file:
+            file.write('Stocks go up bois!! Find more info and analysis on my page -> ')
+            msg = 'Stocks go up bois!! Find more info and analysis on my page -> '
+
+    return msg
+
+def get_link_url(stock=''): #get url for specific stock or just post main page
     if os.path.exists('url_info.txt'):
         with open('url_info.txt', 'r') as file:
             url = file.read()
@@ -15,6 +30,10 @@ def get_link_url(stock=''):
 
             if stock:
                 url = url + 'stock/' + stock
+
+                #test if page exists if not then just use main page
+                if requests.get(url).status_code != 200:
+                    url = 'https://investsuggest.com/'
 
     else:
         with open('url_info.txt', 'w') as file:
@@ -145,12 +164,11 @@ def post_comments(reddit, submissions, stock=None, old_posts=[], top=False): # p
 
             try:
                 if top and stock not in submission.title:
-                    submission.reply("Stocks go up bois!! Find more info and analysis on my page -> " + get_link_url())
-                    print('Comment -- Stocks go up bois!! Find more info and analysis on my page -> ' + get_link_url())
+                    submission.reply(get_message() + get_link_url())
+                    print('Comment --'+get_message() + get_link_url())
                 else:
-                    submission.reply(
-                        "Stocks go up bois!! Find more info and analysis on my page -> " + get_link_url(stock))
-                    print('Comment -- Stocks go up bois!! Find more info and analysis on my page -> ' + get_link_url(
+                    submission.reply(get_message() + get_link_url(stock))
+                    print('Comment --'+get_message() + get_link_url(
                         stock))
                 old_posts.append(submission.id)
                 commented_posts(submission.id)
@@ -176,11 +194,12 @@ def post_reply_on_comments(reddit, submissions, stock=None, old_post=None, old_c
                         print('Waiting out limit')
                         time.sleep(30)
                     try:
-                        comment.reply("Stocks go up bois!! Find more info and analysis on my page -> " + get_link_url())
+                        comment.reply(get_message() + get_link_url())
                         print('Reply -- Commented on comment: ' + str(comment.body) + "--On a post: "+ str(post.title))
+                        print('Comment --' + get_message() + get_link_url())
                         old_comments.append(comment.id)
                         commented_comments(comment.id)
-                        print('Commented on comment: ' + str(comment.body) + "--On a post: "+ str(post.title))
+
 
                     except OAuthException as error:
                         print(error)
