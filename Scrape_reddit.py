@@ -4,6 +4,7 @@ from praw.exceptions import RedditAPIException
 import os
 import time
 
+
 def get_message():  # get message to post
     if os.path.exists('msg_txt.txt'):
         with open('msg_txt.txt', 'r') as file:
@@ -101,7 +102,13 @@ def get_search_phrases():  # get list of stocks
     return search_phrases
 
 
-def commented_posts(new_entry=''):  # what posts did I reply to, if new_entry then update file
+def commented_posts(new_entry='', delete = False): # what posts did I reply to, if new_entry then update file
+    if delete:
+        if os.path.exists('posted.txt'):
+            with open("posted.txt", "w") as f:
+                f.write("")
+                return 0
+
     if not new_entry:
         if os.path.exists('posted.txt'):
             with open("posted.txt", "r") as f:
@@ -113,21 +120,47 @@ def commented_posts(new_entry=''):  # what posts did I reply to, if new_entry th
             commented_posts = []
 
     else:
-        with open("posted.txt", "w") as f:
-            commented_posts = f.write(new_entry + '\n')
+        with open("posted.txt", "a") as f:
+            f.write(new_entry + '\n')
+        if os.path.exists('posted.txt'):
+            with open("posted.txt", "r") as f:
+                commented_posts = f.read()
+                commented_posts = commented_posts.split("\n")
+                commented_posts = list(filter(None, commented_posts))
+
+        else:
+            commented_posts = []
 
     return commented_posts
 
 
-def commented_comments(new_entry=''):  # what comments did I reply to, new_entry to update
-    if os.path.exists('commented.txt'):
-        with open("commented.txt", "r") as f:
-            commented_comments = f.read()
-            commented_comments = commented_comments.split("\n")
-            commented_comments = list(filter(None, commented_comments))
+def commented_comments(new_entry='', delete = True):  # what comments did I reply to, new_entry to update
+    if delete:
+        if os.path.exists('commented.txt'):
+            with open("commented.txt", "w") as f:
+                f.write("")
+                return 0
+
+    if not new_entry:
+        if os.path.exists('commented.txt'):
+            with open("commented.txt", "r") as f:
+                commented_comments = f.read()
+                commented_comments = commented_comments.split("\n")
+                commented_comments = list(filter(None, commented_comments))
+
+        else:
+            commented_comments = []
 
     else:
-        commented_comments = []
+        with open("commented.txt", "a") as f:
+            f.write(new_entry + '\n')
+        if os.path.exists('commented.txt'):
+            with open("commented.txt", "r") as f:
+                commented_comments = f.read()
+                commented_comments = commented_comments.split("\n")
+                commented_comments = list(filter(None, commented_comments))
+        else:
+            commented_comments = []
 
     return commented_comments
 
@@ -164,10 +197,16 @@ def post_comments(reddit, submissions, old_posts=[]):  # post comment on each su
                 print('Commented on: ' + str(submission.title) + " --with ID: " + str(submission.id))
 
 
+
             except RedditAPIException as error:
-                print('Tried to comment on: '+submission.title+' - but Failed.')
+                print('Tried to comment on: ' + submission.title + ' - but Failed.')
                 print(error)
-                raise error
+                if error.error_type == 'TOO_OLD' or error.error_type == 'TOO_MANY_COMMENTS':
+                    old_posts.append(submission.id)
+                    commented_posts(submission.id)
+                    continue
+                else:
+                    raise error
 
 
 def post_reply_on_comments(reddit, submissions, phrase=None,
@@ -193,7 +232,12 @@ def post_reply_on_comments(reddit, submissions, phrase=None,
                     except RedditAPIException as error:
                         print('Tried to comment on: ' + post.title + ' - but Failed.')
                         print(error)
-                        raise error
+                        if error.error_type == 'TOO_OLD' or error.error_type == 'TOO_MANY_COMMENTS':
+                            old_comments.append(comment.id)
+                            commented_comments(comment.id)
+                            continue
+                        else:
+                            raise error
 
 
 def spam(subs_list, reddit, search_phrases):
@@ -207,17 +251,25 @@ def spam(subs_list, reddit, search_phrases):
             top_posts = sub.top('day', limit=5)
         # for each phrase find posts in all subreddits and reply to the posts
         for phrase in search_phrases:
-            submissions = sub.search(phrase, limit=5)
+            submissions = sub.search(phrase, limit=5, time_filter='month')
             try:
                 post_comments(reddit, submissions, old_posts)
                 post_reply_on_comments(reddit, submissions, phrase, old_comments)
-                post_reply_on_comments(reddit, top_posts, phrase, old_comments)
+
+                if sub!='all':
+                    post_reply_on_comments(reddit, top_posts, phrase, old_comments)
 
             except RedditAPIException as error:
-                raise error
+                if error.error_type == 'RATELIMIT':
+                    raise error
+
+                else:
+                    continue
 
 
 if __name__ == "__main__":
+    commented_posts(delete=True)
+    commented_comments(delete=True)
     subreddits = get_subs()
     users = get_users()
     tried = 0
@@ -230,11 +282,11 @@ if __name__ == "__main__":
 
     while 1:
         for user in users:
-            if tried==len(users):
+            if tried == len(users):
                 print('Tried all accounts waiting for 1 min')
                 print('')
                 time.sleep(60)
-                tried=0
+                tried = 0
 
             try:
                 user = reddit_API_conn(user)
@@ -250,12 +302,12 @@ if __name__ == "__main__":
             except RedditAPIException:
                 print('Info: ' + str(user.user.me()) + ' is timed out, trying out next user.')
                 print('')
-                tried+=1
+                tried += 1
                 continue
 
             except Exception as e:
                 print(e)
-                print('Info: '+ str(user.user.me())+ ' has reached limit, trying out next user.')
+                print('Info: ' + str(user.user.me()) + ' has reached limit, trying out next user.')
                 print('')
-                tried+=1
+                tried += 1
                 continue
