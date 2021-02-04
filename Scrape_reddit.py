@@ -251,7 +251,7 @@ def spam(subs_list, reddit, search_phrases):
             top_posts = sub.top('day', limit=5)
         # for each phrase find posts in all subreddits and reply to the posts
         for phrase in search_phrases:
-            submissions = sub.search(phrase, limit=5, time_filter='month')
+            submissions = sub.search(phrase, limit=20, time_filter='month')
             try:
                 post_comments(reddit, submissions, old_posts)
                 post_reply_on_comments(reddit, submissions, phrase, old_comments)
@@ -268,8 +268,6 @@ def spam(subs_list, reddit, search_phrases):
 
 
 if __name__ == "__main__":
-    commented_posts(delete=True)
-    commented_comments(delete=True)
     subreddits = get_subs()
     users = get_users()
     tried = 0
